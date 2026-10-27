@@ -209,7 +209,7 @@ ir::Statement *EnumPostCheckLoweringPhase::CreateStatement(const std::string &sr
     }
 
     if (init != nullptr) {
-        nodes.push_back(init->Clone(Context()->Allocator(), nullptr));
+        nodes.push_back(init);
     }
 
     auto statements = parser_->CreateFormattedStatements(src, nodes);
@@ -324,10 +324,22 @@ ir::Expression *EnumPostCheckLoweringPhase::HandleUnionTypeForCalls(checker::ETS
     return block;
 }
 
+static void ReparentOperandScopes(ir::Expression *expr, varbinder::Scope *oldScope, varbinder::Scope *newScope)
+{
+    auto reparent = [oldScope, newScope](ir::AstNode *child) {
+        if (child->IsScopeBearer() && child->Scope() != nullptr && child->Scope()->Parent() == oldScope) {
+            child->Scope()->SetParent(newScope);
+        }
+    };
+    reparent(expr);
+    expr->IterateRecursively(reparent);
+}
+
 ir::AstNode *EnumPostCheckLoweringPhase::GenerateEnumCasting(ir::TSAsExpression *node, EnumCastType castType)
 {
     auto expr = node->Expr();
-    if (expr->TsType()->IsETSUnionType()) {
+    const bool hasUnionOperand = expr->TsType()->IsETSUnionType();
+    if (hasUnionOperand) {
         auto newExpr = HandleUnionTypeForCalls(expr->TsType()->AsETSUnionType(), node->Expr(), node, castType);
         node->SetExpr(newExpr);
     } else {
@@ -337,7 +349,10 @@ ir::AstNode *EnumPostCheckLoweringPhase::GenerateEnumCasting(ir::TSAsExpression 
     node->SetTsType(nullptr);
     auto *scope = NearestScope(node);
     auto bscope = varbinder::LexicalScope<varbinder::Scope>::Enter(varbinder_, scope);
-    Recheck(Context()->phaseManager, varbinder_, checker_, node);
+    CheckLoweredNode(varbinder_, checker_, node);
+    if (hasUnionOperand) {
+        ReparentOperandScopes(expr, scope, node->Expr()->Scope());
+    }
     return node;
 }
 
