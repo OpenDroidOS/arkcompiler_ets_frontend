@@ -2373,9 +2373,7 @@ void ETSChecker::ValidateSignatureAccessibility(ETSObjectType *callee, Signature
 
 bool ETSChecker::IsReturnTypeSubstitutable(Signature *const s1, Signature *const s2)
 {
-    if (s2->HasSignatureFlag(checker::SignatureFlags::NEED_RETURN_TYPE)) {
-        s2->Function()->Parent()->Parent()->Check(this);
-    }
+    CheckPendingReturnTypeInference(s2);
     auto *const r1 = s1->ReturnType();
     auto *const r2 = s2->ReturnType();
 
