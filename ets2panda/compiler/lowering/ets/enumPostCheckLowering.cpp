@@ -337,7 +337,7 @@ ir::AstNode *EnumPostCheckLoweringPhase::GenerateEnumCasting(ir::TSAsExpression 
     node->SetTsType(nullptr);
     auto *scope = NearestScope(node);
     auto bscope = varbinder::LexicalScope<varbinder::Scope>::Enter(varbinder_, scope);
-    CheckLoweredNode(varbinder_, checker_, node);
+    Recheck(Context()->phaseManager, varbinder_, checker_, node);
     return node;
 }
 
